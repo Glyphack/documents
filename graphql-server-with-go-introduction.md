@@ -37,3 +37,20 @@ In GraphQL your API starts with a schema that defines all your types, queries an
 Whenever you need to add a new capability to a GraphQL API you must redefine schema file and then start implementation. GraphQL has it's [Schema Definition Language](http://graphql.org/learn/schema/) for this.
 gqlgen library has a nice feature and generate code based on your schema definition.
 
+### Getting started <a name="getting-started"></a>
+In this tutorial we are going to create a Hackernews clone with Go and gqlgen, So our API will be able to handle registration, authentication, submitting links and returning list of links.
+
+#### Project Setup
+Create a directory for project and initialize go module:
+
+
+after that use gqlgen init command to setup a gqlgen project.
+go run github.com/99designs/gqlgen init
+Take a look at structure of gqlgen project.
+Project schema is inside schema.graphql file with some default value let's start with editing schema with features we need for our API.
+```
+schema
+```
+then run the command below to regenerate models.go with new schema.
+go run github.com/99designs/gqlgen -v
+
