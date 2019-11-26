@@ -37,4 +37,3 @@ In GraphQL your API starts with a schema that defines all your types, queries an
 Whenever you need to add a new capability to a GraphQL API you must redefine schema file and then start implementation. GraphQL has it's [Schema Definition Language](http://graphql.org/learn/schema/) for this.
 gqlgen library has a nice feature and generate code based on your schema definition.
 
-
