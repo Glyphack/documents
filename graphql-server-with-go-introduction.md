@@ -23,7 +23,7 @@ tags: graphql, go, api, gqlgen
 
 In this tutorial we create a Hackernews clone with GraphQL API with `golang` and `gqlgen` and learn GraphQL fundamentals along the way.
 
-#### What is a GrahpQL server?
+#### What is a GraphQL server?
 GraphQL is a query language for API so you can send queries and ask what you need and get exactly that.
 sample query:
 ```
@@ -38,4 +38,3 @@ Whenever you need to add a new capability to a GraphQL API you must redefine sch
 gqlgen library has a nice feature and generate code based on your schema definition.
 
 
-### 
