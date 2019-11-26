@@ -6,7 +6,6 @@ tags: graphql, go, api, gqlgen
 ---
 ## Table Of Contents
 * [Motivation](#motivation)
-* [What is a GraphQL server](#what-is)
 * [Getting started](#getting-started)
 * [Queries](#queries)
 * [Mutations](#mutations)
@@ -34,6 +33,9 @@ sample response:
 ```
 
 #### Schema-Driven Development
-In GraphQL your API starts with a schema that defines all your types, queries and mutations, It helps others to understand your API so all of your team can understand how to work with your API.
+In GraphQL your API starts with a schema that defines all your types, queries and mutations, It helps others to understand your API so all of your team can understand how to work with your API, a contract between server and the client.
 Whenever you need to add a new capability to a GraphQL API you must redefine schema file and then start implementation. GraphQL has it's [Schema Definition Language](http://graphql.org/learn/schema/) for this.
 gqlgen library has a nice feature and generate code based on your schema definition.
+
+
+### 
