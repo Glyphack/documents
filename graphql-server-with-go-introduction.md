@@ -42,15 +42,54 @@ In this tutorial we are going to create a Hackernews clone with Go and gqlgen, S
 
 #### Project Setup
 Create a directory for project and initialize go module:
-
+```bash
+go mod init github.com/[username]/hackernews
+````
 
 after that use gqlgen init command to setup a gqlgen project.
+```bash
 go run github.com/99designs/gqlgen init
-Take a look at structure of gqlgen project.
-Project schema is inside schema.graphql file with some default value let's start with editing schema with features we need for our API.
 ```
-schema
-```
-then run the command below to regenerate models.go with new schema.
-go run github.com/99designs/gqlgen -v
+Here is a description from gqlgen about the generated files:
+* gqlgen.yml — The gqlgen config file, knobs for controlling the generated code.
+* generated.go — The GraphQL execution runtime, the bulk of the generated code.
+* models_gen.go — Generated models required to build the graph. Often you will override these with your own models. Still very useful for input types.
+* resolver.go — This is where your application code lives. generated.go will call into this to get the data the user has requested.
+* server/server.go — This is a minimal entry point that sets up an http.Handler to the generated GraphQL server.
+run the code with `go run server.go` and open your browser and you should see the graphql playground, So setup is right!
 
+Now let's start with defining schema file with features we need for our API. We have two types Link and User each of them for representing Link and User to client, a `links` Query to return list of Links. a input for creating NewLink and mutation for creating link and returns created link. then run the command below to regenerate models.
+```
+type Link {
+  id: ID!
+  title: String!
+  address: String!
+  user: User!
+}
+
+type User {
+  id: ID!
+  name: String!
+}
+
+type Query {
+  links: [Link!]!
+}
+
+input NewLink {
+  title: String!
+  address: String!
+  userId: ID!
+}
+
+type Mutation {
+  createLink(input: NewLink!): Link!
+}
+```
+Now run the command to regenerate files;
+```bash
+go run github.com/99designs/gqlgen
+```
+After gqlgen generated code for us with have to implement our schema, we do that in ‍‍‍‍`resolver.go`, as you see there is functions for Queries and Mutations we defined in our schema.
+
+#### SetUp database
