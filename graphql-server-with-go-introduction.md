@@ -47,7 +47,7 @@ go mod init github.com/[username]/hackernews
 ````
 
 after that use gqlgen init command to setup a gqlgen project.
-```bash
+```go
 go run github.com/99designs/gqlgen init
 ```
 Here is a description from gqlgen about the generated files:
@@ -87,9 +87,67 @@ type Mutation {
 }
 ```
 Now run the command to regenerate files;
-```bash
+```go
 go run github.com/99designs/gqlgen
 ```
 After gqlgen generated code for us with have to implement our schema, we do that in ‍‍‍‍`resolver.go`, as you see there is functions for Queries and Mutations we defined in our schema.
 
-#### SetUp database
+##### Setup database
+Before we jump into implementing GraphQL schema we need to setup database to save users and links, This is not supposed to be tutorial about databases in go but here is what we are going to do:
+* setup MySQL and create table
+* define our models and create migrations
+
+###### Setup MySQL
+If you have docker you can run [Mysql image]((https://hub.docker.com/_/mysql)) from docker and use it.
+`docker run --name some-mysql -e MYSQL_ROOT_PASSWORD=my-secret-pw -d mysql:tag`
+now run `docker ps` and you should see our mysql image is running:
+```
+CONTAINER ID        IMAGE                                                               COMMAND                  CREATED             STATUS              PORTS                  NAMES
+8fea71529bb2        mysql:latest                                                        "docker-entrypoint.s…"   2 hours ago         Up 2 hours          3306/tcp, 33060/tcp    mysql
+
+```
+
+Now create a database for our application:
+```bash
+docker exec -it mysql bash
+mysql -u root -p
+CREATE DATABASE hackernewsgo;
+```
+
+###### Models and migrations
+We need to create migrations for our app so every time our app runs it creates tables it needs to work properly, we are going to use [golang-migrate](https://github.com/golang-migrate/migrate) package.
+create a folder structure for our database files:
+```
+go-graphql-hackernews
+--internals
+----db
+------migrations
+```
+Install go mysql driver and golang-migrate packages then create migrations:
+```
+go get -u github.com/go-sql-driver/mysql
+go build -tags 'mysql' -ldflags="-X main.Version=$(git describe --tags)" -o $GOPATH/bin/migrate github.com/golang-migrate/migrate/cmd/migrate
+migrate create -ext sql -dir migrations -seq create_users_table
+migrate create -ext sql -dir migrations -seq create_links_table
+```
+migrate command will create two files for each migration ending with .up and .down; up is responsible for applying migration and down is responsible for reversing it.
+open create_users_table.up.sql and add table for our users:
+```sql
+CREATE TABLE IF NOT EXISTS Users(
+    ID INT NOT NULL UNIQUE,
+    Username VARCHAR (127) NOT NULL UNIQUE,
+    Password VARCHAR (127) NOT NULL,
+    PRIMARY KEY (ID)
+)
+```
+in create_links_table.up.sql:
+```sql
+CREATE TABLE IF NOT EXISTS links(
+    ID int NOT NULL UNIQUE,
+    Title varchar (255),
+    Address varchar (255),
+    UserID int,
+    FOREIGN KEY (UserID) REFERENCES Users(UserID),
+    PRIMARY KEY (ID)
+)
+```
