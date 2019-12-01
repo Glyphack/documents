@@ -99,7 +99,7 @@ Before we jump into implementing GraphQL schema we need to setup database to sav
 
 ###### Setup MySQL
 If you have docker you can run [Mysql image]((https://hub.docker.com/_/mysql)) from docker and use it.
-`docker run --name some-mysql -e MYSQL_ROOT_PASSWORD=my-secret-pw -d mysql:tag`
+`docker run --name some-mysql -e MYSQL_ROOT_PASSWORD=my-secret-pw -d mysql:latest`
 now run `docker ps` and you should see our mysql image is running:
 ```
 CONTAINER ID        IMAGE                                                               COMMAND                  CREATED             STATUS              PORTS                  NAMES
@@ -151,3 +151,5 @@ CREATE TABLE IF NOT EXISTS links(
     PRIMARY KEY (ID)
 )
 ```
+
+We need one table for saving links and one table for saving users, Then we apply these to our database using migrate command.
