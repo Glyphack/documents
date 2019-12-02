@@ -99,7 +99,7 @@ Before we jump into implementing GraphQL schema we need to setup database to sav
 
 ###### Setup MySQL
 If you have docker you can run [Mysql image]((https://hub.docker.com/_/mysql)) from docker and use it.
-`docker run --name some-mysql -e MYSQL_ROOT_PASSWORD=my-secret-pw -d mysql:latest`
+`docker run --name mysql -e MYSQL_ROOT_PASSWORD=secret -d mysql:latest`
 now run `docker ps` and you should see our mysql image is running:
 ```
 CONTAINER ID        IMAGE                                                               COMMAND                  CREATED             STATUS              PORTS                  NAMES
@@ -111,7 +111,7 @@ Now create a database for our application:
 ```bash
 docker exec -it mysql bash
 mysql -u root -p
-CREATE DATABASE hackernewsgo;
+CREATE DATABASE hackernews;
 ```
 
 ###### Models and migrations
@@ -122,6 +122,7 @@ go-graphql-hackernews
 --internals
 ----db
 ------migrations
+------mysql
 ```
 Install go mysql driver and golang-migrate packages then create migrations:
 ```
@@ -142,14 +143,19 @@ CREATE TABLE IF NOT EXISTS Users(
 ```
 in create_links_table.up.sql:
 ```sql
-CREATE TABLE IF NOT EXISTS links(
-    ID int NOT NULL UNIQUE,
-    Title varchar (255),
-    Address varchar (255),
-    UserID int,
-    FOREIGN KEY (UserID) REFERENCES Users(UserID),
+CREATE TABLE IF NOT EXISTS Links(
+    ID INT NOT NULL UNIQUE,
+    Title VARCHAR (255) ,
+    Address VARCHAR (255) ,
+    UserID INT ,
+    FOREIGN KEY (UserID) REFERENCES Users(ID) ,
     PRIMARY KEY (ID)
 )
 ```
 
 We need one table for saving links and one table for saving users, Then we apply these to our database using migrate command.
+
+```bash
+migrate -database mysql://root:secret@(172.17.0.2:3306)/hackernews -path internal/db/migrations up
+```
+
