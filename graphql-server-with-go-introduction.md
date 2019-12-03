@@ -9,6 +9,7 @@ tags: graphql, go, api, gqlgen
 * [Getting started](#getting-started)
 * [Queries](#queries)
 * [Mutations](#mutations)
+* [Database] (#database)
 * [Authentication](#authentication)
 * [Error handling](#error-handling)
 * [Filtering](#filtering)
@@ -82,8 +83,20 @@ input NewLink {
   userId: ID!
 }
 
+input NewUser {
+  username: String!
+  password: String!
+}
+
+input Login {
+  username: String!
+  password: String!
+}
+
 type Mutation {
   createLink(input: NewLink!): Link!
+  createUser(input: NewUser!): User!
+  login(input: Login!): String!
 }
 ```
 Now run the command to regenerate files;
@@ -91,15 +104,20 @@ Now run the command to regenerate files;
 go run github.com/99designs/gqlgen
 ```
 After gqlgen generated code for us with have to implement our schema, we do that in ‍‍‍‍`resolver.go`, as you see there is functions for Queries and Mutations we defined in our schema.
+Now let's see what we got, run app with `go run server/server.go` and 
 
-##### Setup database
+
+### Queries
+In the previous chapter we setup up a server that runs graphql, Now we try to implement a Query that we defined in `schema.grpahql`.
+
+### Database
 Before we jump into implementing GraphQL schema we need to setup database to save users and links, This is not supposed to be tutorial about databases in go but here is what we are going to do:
 * setup MySQL and create table
 * define our models and create migrations
 
-###### Setup MySQL
+##### Setup MySQL
 If you have docker you can run [Mysql image]((https://hub.docker.com/_/mysql)) from docker and use it.
-`docker run --name mysql -e MYSQL_ROOT_PASSWORD=secret -d mysql:latest`
+`docker run --name mysql -e MYSQL_ROOT_PASSWORD=dbpass -d mysql:latest`
 now run `docker ps` and you should see our mysql image is running:
 ```
 CONTAINER ID        IMAGE                                                               COMMAND                  CREATED             STATUS              PORTS                  NAMES
@@ -114,7 +132,7 @@ mysql -u root -p
 CREATE DATABASE hackernews;
 ```
 
-###### Models and migrations
+##### Models and migrations
 We need to create migrations for our app so every time our app runs it creates tables it needs to work properly, we are going to use [golang-migrate](https://github.com/golang-migrate/migrate) package.
 create a folder structure for our database files:
 ```
@@ -156,7 +174,7 @@ CREATE TABLE IF NOT EXISTS Links(
 We need one table for saving links and one table for saving users, Then we apply these to our database using migrate command.
 
 ```bash
-migrate -database mysql://root:secret@(172.17.0.2:3306)/hackernews -path internal/db/migrations up
+migrate -database mysql://root:dbpass@(172.17.0.2:3306)/hackernews -path internal/db/migrations up
 ```
 
 Last thing is that we need a connection to our database, for this we create a mysql.go under mysql folder(We name this file after mysql since we are now using mysql and if we want to have multiple databases we can add other folders) with a function to initialize connection to database for later use.
@@ -186,3 +204,5 @@ func InitDB() {
 	}
 }
 ```
+
+Then call InitDB In main func to create database connection at the start of the app.
