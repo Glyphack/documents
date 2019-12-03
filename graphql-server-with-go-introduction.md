@@ -159,3 +159,30 @@ We need one table for saving links and one table for saving users, Then we apply
 migrate -database mysql://root:secret@(172.17.0.2:3306)/hackernews -path internal/db/migrations up
 ```
 
+Last thing is that we need a connection to our database, for this we create a mysql.go under mysql folder(We name this file after mysql since we are now using mysql and if we want to have multiple databases we can add other folders) with a function to initialize connection to database for later use.
+internals/db/mysql/mysql.go:
+```go
+package database
+
+import 	(
+	"database/sql"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/golang-migrate/migrate"
+	"github.com/golang-migrate/migrate/database/mysql"
+	_ "github.com/golang-migrate/migrate/source/file"
+	"log"
+)
+
+var db *sql.DB
+
+func InitDB() {
+	db, err := sql.Open("mysql", "root:bozbozack@(172.17.0.2:3306)/hackernews")
+	if err != nil {
+		log.Panic(err)
+	}
+
+	if err = db.Ping(); err != nil {
+		log.Panic(err)
+	}
+}
+```
