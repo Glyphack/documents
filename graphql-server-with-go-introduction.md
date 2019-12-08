@@ -5,16 +5,23 @@ description: Introduction to Building GraphQL apis with golang and gqlgen.
 tags: graphql, go, api, gqlgen
 ---
 ## Table Of Contents
-* [Motivation](#motivation)
-* [Getting started](#getting-started)
-* [Queries](#queries)
-* [Mutations](#mutations)
-* [Database] (#database)
-* [Authentication](#authentication)
-* [Error handling](#error-handling)
-* [Filtering](#filtering)
-* [Pagination](#pagination)
-* [Summary](#summary)
+- [Table Of Contents](#table-of-contents)
+  - [Motivation ](#motivation)
+    - [What is a GraphQL server?](#what-is-a-graphql-server)
+    - [Schema-Driven Development](#schema-driven-development)
+  - [Getting started ](#getting-started)
+    - [Project Setup](#project-setup)
+  - [Queries](#queries)
+    - [What Is A Query](#what-is-a-query)
+    - [Simple Query](#simple-query)
+  - [Mutations](#mutations)
+    - [What Is A Mutation](#what-is-a-mutation)
+    - [A Simple Mutation](#a-simple-mutation)
+  - [Database](#database)
+      - [Setup MySQL](#setup-mysql)
+      - [Models and migrations](#models-and-migrations)
+  - [Authentication](#authentication)
+  - [Implement Our Schema](#implement-our-schema)
 
 ### Motivation <a name="motivation"></a>
 [**Go**](https://golang.org/) is a modern general purpose programming language designed by google; best known for it's simplicity, concurrency and fast performance. It's being used by big players in the industry like Google, Docker, Lyft and Uber. If you are new to golang you can start from [golang tour](https://tour.golang.org/) to learn fundamentals.
@@ -104,11 +111,63 @@ Now run the command to regenerate files;
 go run github.com/99designs/gqlgen
 ```
 After gqlgen generated code for us with have to implement our schema, we do that in ‍‍‍‍`resolver.go`, as you see there is functions for Queries and Mutations we defined in our schema.
-Now let's see what we got, run app with `go run server/server.go` and 
+Now let's see what we got, run app with `go run server/server.go` and go to localhost you should see graphiql page.
 
 
 ### Queries
 In the previous chapter we setup up a server that runs graphql, Now we try to implement a Query that we defined in `schema.grpahql`.
+
+#### What Is A Query
+a query in graphql is asking for data, you ask for the data type you want and specify what you want from that type and graphql will return it back to you
+
+#### Simple Query
+ open `resolver.go` file and take a look at Links function,
+```go
+func (r *queryResolver) Links(ctx context.Context) ([]*Link, error) {
+```
+this function returns slice of Links, Let's make a dummy response for this function for now
+```go
+func (r *queryResolver) Links(ctx context.Context) ([]*Link, error) {
+	var links []*Link
+	links = append(links, &Link{Title: "our dummy link", Address: "https://address.org", User: &User{Name: "admin"}})
+	return links, nil
+}
+```
+now run graphql server and send this query:
+```
+query {
+	links{
+    title
+    address,
+    user{
+      name
+    }
+  }
+}
+```
+And you will get:
+```
+{
+  "data": {
+    "links": [
+      {
+        "title": "our dummy link",
+        "address": "https://address.org",
+        "user": {
+          "name": "admin"
+        }
+      }
+    ]
+  }
+}
+```
+Nice! now you know how we generate response for our graphql server. But this response is just a dummy response we want be able to query all other users links, In the next chapter we setup database for our app to be able to save links and retrieve them from database.
+
+
+### Mutations
+#### What Is A Mutation
+#### A Simple Mutation
+
 
 ### Database
 Before we jump into implementing GraphQL schema we need to setup database to save users and links, This is not supposed to be tutorial about databases in go but here is what we are going to do:
@@ -206,3 +265,7 @@ func InitDB() {
 ```
 
 Then call InitDB In main func to create database connection at the start of the app.
+
+### Authentication
+
+### Implement Our Schema
