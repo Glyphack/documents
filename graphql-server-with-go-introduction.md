@@ -20,8 +20,16 @@ tags: graphql, go, api, gqlgen
   - [Database](#database)
       - [Setup MySQL](#setup-mysql)
       - [Models and migrations](#models-and-migrations)
+  - [Create and Retrieve Links](#create-and-retrieve-links)
+    - [CreateLinks](#createlinks)
+    - [links Query](#links-query)
   - [Authentication](#authentication)
-  - [Implement Our Schema](#implement-our-schema)
+    - [Setup JWT](#setup-jwt)
+      - [Database Table](#database-table)
+      - [Authentication Middleware](#authentication-middleware)
+    - [CreateUser](#createuser)
+    - [Login](#login)
+    - [Enhance our](#enhance-our)
 
 ### Motivation <a name="motivation"></a>
 [**Go**](https://golang.org/) is a modern general purpose programming language designed by google; best known for it's simplicity, concurrency and fast performance. It's being used by big players in the industry like Google, Docker, Lyft and Uber. If you are new to golang you can start from [golang tour](https://tour.golang.org/) to learn fundamentals.
@@ -87,7 +95,6 @@ type Query {
 input NewLink {
   title: String!
   address: String!
-  userId: ID!
 }
 
 input NewUser {
@@ -280,7 +287,7 @@ CREATE TABLE IF NOT EXISTS Links(
 We need one table for saving links and one table for saving users, Then we apply these to our database using migrate command.
 
 ```bash
-migrate -database mysql://root:dbpass@(172.17.0.2:3306)/hackernews -path internal/db/migrations up
+  migrate -database mysql://root:dbpass@(172.17.0.2:3306)/hackernews -path internal/db/migrations up
 ```
 
 Last thing is that we need a connection to our database, for this we create a mysql.go under mysql folder(We name this file after mysql since we are now using mysql and if we want to have multiple databases we can add other folders) with a function to initialize connection to database for later use.
@@ -331,7 +338,181 @@ func main() {
 
 ```
 
-### Authentication
-Now we have our database setup we can implement simple authentication for our service, We need to be able create users and verify user info and login.
 
-### Implement Our Schema
+### Create and Retrieve Links
+Now we have our database ready we can start implementing our schema!
+
+#### CreateLinks
+Lets implement CreateLink mutation; first we need a function to let us write a link to database.
+Create a folders links and users inside internal folder, these packages are layers between database and our app.
+users/users.go:
+```go
+package users
+
+type User struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Password string `json:"password"`
+}
+```
+links/links.go:
+```go
+package links
+
+import (
+	database "github.com/glyphack/hackernews-graphql-go/internal/pkg/db/mysql"
+	"github.com/glyphack/hackernews-graphql-go/internal/users"
+	"log"
+)
+// #1
+type Link struct {
+	ID      string
+	title   string
+	address string
+	user    *users.User
+}
+
+//#2
+func (link Link) Save() int64{
+  //#3
+	statement, err := database.Db.Prepare("INSERT INTO Links(Title,Address) VALUES(?,?)")
+	if err != nil {
+		log.Fatal(err)
+  }
+  //#4
+	res, err := statement.Exec(link.Title, link.Address)
+	if err != nil {
+		log.Fatal(err)
+  }
+  //#5
+	id, err := res.LastInsertId()
+	if err != nil {
+		log.Fatal("Error:", err.Error())
+	}
+	log.Print("Row inserted!")
+	return id
+}
+```
+In users.go we just defined a `struct` that represent users we get from database, But let me explain links.go part by part:
+* #1: definition of struct that represent a link.
+* #2: function that insert a Link object into database and returns it's ID.
+* #3: our sql query to insert link into Links table. you see we used prepare here instead of db.Exec at once, the prepared statements helps you with security and also performance improvement in some cases. you can read more about it [here](https://www.postgresql.org/docs/9.3/sql-prepare.html).
+* #4: execution of our sql statement.
+* #5: retrieving Id of inserted Link.
+
+Now we use this function in our CreateLink resolver:
+resolver.go:
+```go
+func (r *mutationResolver) CreateLink(ctx context.Context, input NewLink) (*Link, error) {
+	var link links.Link
+	link.Title = input.Title
+	link.Address = input.Address
+	linkId := link.Save()
+	return &Link{ID: strconv.FormatInt(linkId, 10), Title:link.Title, Address:link.Address}, nil
+}
+```
+Hopefully you Understand this piece of code, we create a link object from input and save it to database then return newly created link.
+note that here we have 2 structs for Link here, one is use for our graphql server and one is for our database.
+open graphiql to test what we just wrote:
+```
+mutation create{
+  createLink(input: {title: "something", address: "somewhere"}){
+    title,
+    address,
+    id,
+  }
+}
+```
+```
+{
+  "data": {
+    "createLink": {
+      "title": "something",
+      "address": "somewhere",
+      "id": "10"
+    }
+  }
+}
+```
+Grate job!
+
+#### links Query
+Just like how we implemented CreateLink mutation we implement links query, we need a function to retrieve links from database and pass it to graphql server in our resolver.
+Create a function named GetAll
+`internal/links/links.go`:
+```go
+func GetAll() []Link {
+	stmt, err := database.Db.Prepare("select id, title, address from Links")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer stmt.Close()
+	rows, err := stmt.Query()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rows.Close()
+	var links []Link
+	for rows.Next() {
+		var link Link
+		err := rows.Scan(&link.ID, &link.Title, &link.Address)
+		if err != nil{
+			log.Fatal(err)
+		}
+		links = append(links, link)
+	}
+	if err = rows.Err(); err != nil {
+		log.Fatal(err)
+	}
+	return links
+}
+```
+
+Return links from GetAll in Links query.
+`resolver.go`:
+```go
+func (r *queryResolver) Links(ctx context.Context) ([]*Link, error) {
+	var resultLinks []*Link
+	var dbLinks []links.Link
+	dbLinks = links.GetAll()
+	for _, link := range dbLinks{
+		resultLinks = append(resultLinks, &Link{ID:link.ID, Title:link.Title, Address:link.Address})
+	}
+	return resultLinks, nil
+}
+```
+Now query Links at graphiql:
+```
+{
+  "data": {
+    "createLink": {
+      "title": "something",
+      "address": "somewhere",
+      "id": "10"
+    }
+  }
+}
+```
+result:
+```
+{
+  "data": {
+    "links": [
+      {
+        "id": "1",
+        "title": "something",
+        "address": "somewhere"
+      },
+    ]
+  }
+}
+```
+
+### Authentication
+#### Setup JWT
+##### Database Table
+##### Authentication Middleware
+
+#### CreateUser
+#### Login
+#### Enhance our 
