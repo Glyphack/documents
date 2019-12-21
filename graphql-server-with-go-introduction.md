@@ -509,10 +509,17 @@ result:
 ```
 
 ### Authentication
-#### Setup JWT
-##### Database Table
-##### Authentication Middleware
+One of most common layers in web applications is authentication system, our app is no exception. For authentication we are going to use jwt tokens as our way to authentication users, lets see how it works.
 
+##### JWT
+[JWT](https://jwt.io/) or Json Web Token is a string containing a hash that helps us verify who is using application. Every token is constructed of 3 parts like 'xxxxx.yyyyy.zzzzz' and name of these parts are: Header, Payload and Signature. Explanation about these parts are more about JWT than our application you can read more about them [here](https://jwt.io/introduction/)
+
+##### Setup
+In our app we need to be able to generate a token for users when they login, and a middleware to authenticate users by the given token, 
+###### Database Table
+###### Authentication Middleware
+
+### Continue Implementing schema
 #### CreateUser
 #### Login
-#### Enhance our 
+#### Enhance 
