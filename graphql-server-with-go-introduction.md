@@ -311,8 +311,27 @@ func InitDB() {
 }
 ```
 
-Then call InitDB In main func to create database connection at the start of the app.
+Then call `InitDB` In main func to create database connection at the start of the app:
+```go
+func main() {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = defaultPort
+	}
+
+	database.Migrate()
+	database.InitDB()
+
+	http.Handle("/", handler.Playground("GraphQL playground", "/query"))
+	http.Handle("/query", handler.GraphQL(hackernews.NewExecutableSchema(hackernews.Config{Resolvers: &hackernews.Resolver{}})))
+
+	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
+	log.Fatal(http.ListenAndServe(":"+port, nil))
+}
+
+```
 
 ### Authentication
+Now we have our database setup we can implement simple authentication for our service, We need to be able create users and verify user info and login.
 
 ### Implement Our Schema
