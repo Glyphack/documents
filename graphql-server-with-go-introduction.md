@@ -24,12 +24,15 @@ tags: graphql, go, api, gqlgen
     - [CreateLinks](#createlinks)
     - [links Query](#links-query)
   - [Authentication](#authentication)
-    - [Setup JWT](#setup-jwt)
-      - [Database Table](#database-table)
-      - [Authentication Middleware](#authentication-middleware)
+      - [JWT](#jwt)
+      - [Setup](#setup)
+        - [Generating and Parsing JWT Tokens](#generating-and-parsing-jwt-tokens)
+        - [User Signup and Login Functionality](#user-signup-and-login-functionality)
+        - [Authentication Middleware](#authentication-middleware)
+  - [Continue Implementing schema](#continue-implementing-schema)
     - [CreateUser](#createuser)
     - [Login](#login)
-    - [Enhance our](#enhance-our)
+    - [Enhance](#enhance)
 
 ### Motivation <a name="motivation"></a>
 [**Go**](https://golang.org/) is a modern general purpose programming language designed by google; best known for it's simplicity, concurrency and fast performance. It's being used by big players in the industry like Google, Docker, Lyft and Uber. If you are new to golang you can start from [golang tour](https://tour.golang.org/) to learn fundamentals.
@@ -75,7 +78,7 @@ Here is a description from gqlgen about the generated files:
 run the code with `go run server.go` and open your browser and you should see the graphql playground, So setup is right!
 
 Now let's start with defining schema file with features we need for our API. We have two types Link and User each of them for representing Link and User to client, a `links` Query to return list of Links. a input for creating NewLink and mutation for creating link and returns created link. then run the command below to regenerate models.
-```
+```js
 type Link {
   id: ID!
   title: String!
@@ -109,7 +112,8 @@ input Login {
 
 type Mutation {
   createLink(input: NewLink!): Link!
-  createUser(input: NewUser!): User!
+  # we'll talk about these in authentication section
+  createUser(input: NewUser!): String!
   login(input: Login!): String!
 }
 ```
@@ -512,12 +516,278 @@ result:
 One of most common layers in web applications is authentication system, our app is no exception. For authentication we are going to use jwt tokens as our way to authentication users, lets see how it works.
 
 ##### JWT
-[JWT](https://jwt.io/) or Json Web Token is a string containing a hash that helps us verify who is using application. Every token is constructed of 3 parts like 'xxxxx.yyyyy.zzzzz' and name of these parts are: Header, Payload and Signature. Explanation about these parts are more about JWT than our application you can read more about them [here](https://jwt.io/introduction/)
+[JWT](https://jwt.io/) or Json Web Token is a string containing a hash that helps us verify who is using application. Every token is constructed of 3 parts like 'xxxxx.yyyyy.zzzzz' and name of these parts are: Header, Payload and Signature. Explanation about these parts are more about JWT than our application you can read more about them [here](https://jwt.io/introduction/).
+whenever a user login to an app server generates a token for user, Usually server saves some information like username about the user in token to be able to recognize the user later using that token.This tokens get signed by a key so only the issuer app can reopen the token.
+We are going to implement this behavior in our app. 
 
 ##### Setup
-In our app we need to be able to generate a token for users when they login, and a middleware to authenticate users by the given token, 
-###### Database Table
+In our app we need to be able to generate a token for users when they sign up or login and a middleware to authenticate users by the given token, then in our views we can know the user interacting with app. We will be using `github.com/dgrijalva/jwt-go` library to generate and prase JWT tokens.
+###### Generating and Parsing JWT Tokens
+We create a new directory pkg in the root of our application, you have seen that we used internal for what we want to only be internally used withing our app, pkg directory is for files that we don't mind if some outer code imports it into itself and generation and validation jwt tokens are this kind of codes.
+There is a concept named claims it's not only limited to JWT
+`pkg/jwt/token.go`:
+```go
+package jwt
+
+import (
+	"github.com/dgrijalva/jwt-go"
+	"log"
+	"time"
+)
+
+// secret key being used to sign tokens
+const (
+	SecretKey = "secret"
+)
+
+//data we save in each token
+type Claims struct {
+	username string
+	jwt.StandardClaims
+}
+
+//GenerateToken generates a jwt token and assign a username to it's claims and return it
+func GenerateToken(username string) (string, error) {
+	claims := &Claims{
+		username: username,
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: time.Now().Add(time.Minute * time.Duration(5)).Unix(),
+			IssuedAt:  time.Now().Unix(),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenStr, err := token.SignedString([]byte(SecretKey))
+	if err != nil {
+		log.Fatal("Error in Generating key")
+		return "", err
+	}
+	return tokenStr, nil
+
+}
+
+//ParseToken parses a jwt token and returns the username it it's claims
+func ParseToken(tokenStr string) (string, error) {
+	claims := &Claims{}
+
+	tkn, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
+		return SecretKey, nil
+	})
+
+	if err != nil || !tkn.Valid {
+		return "", err
+	}
+
+	return claims.username, nil
+}
+
+```
+Let's talk about what above code does:
+* GenerateToken function is going to be used whenever we want to generate a token for user, we save username in token claims and set token expire time to 5 minutes later also in claims.
+* ParseToken function is going to be used whenever we receive a token and want to know who sent this token.
+
+###### User Signup and Login Functionality
+Til now we can generate a token for each user but before generating token for every user, we need to assure user exists in our database. Simply we need to query database to match the user with given username and password.
+Another thing is when a user tries to register we insert username and password in our database.
+`internal/users/users.go`:
+```go
+package users
+
+import (
+	"database/sql"
+	"github.com/glyphack/hackernews-graphql-go/internal/pkg/db/mysql"
+	"golang.org/x/crypto/bcrypt"
+
+	"log"
+)
+
+type User struct {
+	ID       string `json:"id"`
+	Username     string `json:"name"`
+	Password string `json:"password"`
+}
+
+func (user *User) Create() {
+	statement, err := database.Db.Prepare("INSERT INTO Users(Name,Password) VALUES(?,?)")
+	print(statement)
+	if err != nil {
+		log.Fatal(err)
+	}
+	hashedPassword, err := HashPassword(user.Password)
+	_, err = statement.Exec(user.Username, hashedPassword)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func (user *User) Authenticate() bool{
+	statement, err := database.Db.Prepare("select Password from Users WHERE Username = ?")
+	if err != nil {
+		log.Fatal(err)
+	}
+	row := statement.QueryRow(user.Username)
+
+	var hashedPassword string
+	err = row.Scan(&hashedPassword)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false
+		}else{
+			log.Fatal(err)
+		}
+	}
+
+	return CheckPasswordHash(user.Password, hashedPassword)
+}
+
+//HashPassword hashes given password
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	return string(bytes), err
+}
+
+//CheckPassword hash compares raw password with it's hashed values
+func CheckPasswordHash(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
+}
+```
+The Create function is much like the [CreateLink](#createlinks) function we saw earlier but let's break down the Authenticate code:
+* first we have a query to select password from users table where username is equal to the username we got from resolver.
+* We use QueryRow instead of Exec we used earlier; the difference is `QueryRow()` will return a pointer to a `sql.Row`.
+* Using `.Scan` method we tell the program to fill the hashedPassword variable with the password from database.
+* then we check if any user with given username exists or not, if there is not any we return `false`, and if we found any we check the user hashedPassword with the raw password given.(Notice that we save hashed passwords not raw passwords in database in line 23)
+
+In the next part we set the tools we have together to detect the user that is using the app.
 ###### Authentication Middleware
+Every time a request comes to our resolver before sending it to resolver we want to recognize the user sending request, for this purpose we have to write a code before every resolver, but using middleware we can have a auth middleware that executes before request send to resolver and does the authentication process. to read more about middlewares visit.
+
+
+`internal/users/users.go`:
+```go
+//GetUserByUsername check if a user exists in database by given username
+func (user *User) GetUserByUsername() (int, error) {
+	statement, err := database.Db.Prepare("select ID from Users WHERE Username = ?")
+	if err != nil {
+		log.Fatal(err)
+	}
+	row := statement.QueryRow(user.Username)
+
+	var Id int
+	err = row.Scan(&Id)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			log.Print(err)
+		}
+		return 0, err
+	}
+
+	return Id, nil
+}
+```
+
+`internal/auth/middleware.go`:
+```go
+package auth
+
+import (
+	"context"
+	"net/http"
+	"strconv"
+
+	"github.com/glyphack/hackernews-graphql-go/internal/users"
+	"github.com/glyphack/hackernews-graphql-go/pkg/jwt"
+)
+
+var userCtxKey = &contextKey{"user"}
+
+type contextKey struct {
+	name string
+}
+
+func Middleware() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			c, err := r.Cookie("token")
+
+			// Allow unauthenticated users in
+			if err != nil || c == nil {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			//validate jwt token
+			tokenStr := c.Value
+			username, err := jwt.ParseToken(tokenStr)
+			if err != nil {
+				http.Error(w, "Invalid token", http.StatusForbidden)
+				return
+			}
+
+			// create user and check if user exists in db
+			user := users.User{Username: username}
+			id, err := user.GetUserByUsername()
+			if err != nil {
+				next.ServeHTTP(w, r)
+				return
+			}
+			user.ID = strconv.Itoa(id)
+
+			// put it in context
+			ctx := context.WithValue(r.Context(), userCtxKey, user)
+
+			// and call the next with our new context
+			r = r.WithContext(ctx)
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// ForContext finds the user from the context. REQUIRES Middleware to have run.
+func ForContext(ctx context.Context) *users.User {
+	raw, _ := ctx.Value(userCtxKey).(*users.User)
+	return raw
+}
+```
+
+Now we use the middleware we declared in our server:
+`server/server.go`:
+```go
+package main
+
+import (
+	"github.com/glyphack/hackernews-graphql-go/internal/auth"
+	"log"
+	"net/http"
+	"os"
+
+	"github.com/99designs/gqlgen/handler"
+	hackernews "github.com/glyphack/hackernews-graphql-go"
+	"github.com/glyphack/hackernews-graphql-go/internal/pkg/db/mysql"
+	"github.com/go-chi/chi"
+)
+
+const defaultPort = "8080"
+
+func main() {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = defaultPort
+	}
+
+	router := chi.NewRouter()
+
+	router.Use(auth.Middleware())
+
+	database.InitDB()
+	//database.Migrate()
+	server := handler.GraphQL(hackernews.NewExecutableSchema(hackernews.Config{Resolvers: &hackernews.Resolver{}}))
+	router.Handle("/", handler.Playground("GraphQL playground", "/query"))
+	router.Handle("/query", server)
+
+	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
+	log.Fatal(http.ListenAndServe(":"+port, router))
+}
+```
 
 ### Continue Implementing schema
 #### CreateUser
