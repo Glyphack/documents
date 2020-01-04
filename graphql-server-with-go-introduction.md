@@ -790,6 +790,111 @@ func main() {
 ```
 
 ### Continue Implementing schema
+Now that we have working authentication system we can get back to implementing our schema.
 #### CreateUser
+As you may guess, we need a function to interact with our database:
+`internal/users.go`:
+```go
+func (user *User) Create() error {
+	statement, err := database.Db.Prepare("INSERT INTO Users(Name,Password) VALUES(?,?)")
+	if err != nil {
+		return err
+	}
+	// 1
+	hashedPassword, err := HashPassword(user.Password)
+	_, err = statement.Exec(user.Username, hashedPassword)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+//HashPassword hashes given password
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	return string(bytes), err
+}
+Explanation:
+* Obviously you don't want to [save raw passwords](https://security.blogoverflow.com/2011/11/why-passwords-should-be-hashed/) in your database.
+```
+
+We continue our implementation by using this function in our mutation to create users.
+`resolver.go`:
+```go
+func (r *mutationResolver) CreateUser(ctx context.Context, input NewUser) (string, error) {
+	var user users.User
+	user.Username = input.Username
+	user.Password = input.Password
+	err := user.Create()
+	token, err := jwt.GenerateToken(user.Username)
+	if err != nil{
+		return "", err
+	}
+	return token, nil
+}
+```
+In our mutation first we create a user using given username and password and then generate a token for the user so we can recognize the user in requests.
 #### Login
+For this mutation, first we have to check if user exists in database and given password is correct, then we generate a token for user and give it bach to user.
+`internal/users.go`:
+```go
+func (user *User) Authenticate() bool {
+	statement, err := database.Db.Prepare("select Password from Users WHERE Username = ?")
+	if err != nil {
+		log.Fatal(err)
+	}
+	row := statement.QueryRow(user.Username)
+
+	var hashedPassword string
+	err = row.Scan(&hashedPassword)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false
+		} else {
+			log.Fatal(err)
+		}
+	}
+
+	return CheckPasswordHash(user.Password, hashedPassword)
+}
+
+//CheckPassword hash compares raw password with it's hashed values
+func CheckPasswordHash(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
+}
+```
+Explanation:
+* we select the user with the given username and then check if hash of the given password is equal to hashed password that we saved in database.
+
+`resolver.go`
+```go
+func (r *mutationResolver) Login(ctx context.Context, input Login) (string, error) {
+	var user users.User
+	user.Username = input.Username
+	user.Password = input.Password
+	correct := user.Authenticate()
+	if !correct {
+		// 1
+		return "", &users.WrongUsernameOrPasswordError{}
+	}
+	token, err := jwt.GenerateToken(user.Username)
+	if err != nil{
+		return "", err
+	}
+	return token, nil
+}
+```
+We used the Authenticate function declared above and after that if the username and password are correct we return a new token for user and if not we return error, `&users.WrongUsernameOrPasswordError`, here is implementation for this error:
+`internal/users/errors.go`:
+```go
+package users
+
+type WrongUsernameOrPasswordError struct{}
+
+func (m *WrongUsernameOrPasswordError) Error() string {
+	return "wrong username or password"
+}
+```
+
 #### Enhance 
