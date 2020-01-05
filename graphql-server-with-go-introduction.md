@@ -903,7 +903,7 @@ To define a custom error in go you need a struct with Error method implemented, 
 
 #### Completing Our app 
 Our CreateLink mutation left incomplete because we could not authorize users back then, so let's get back to it and complete the implementation.
-With what we did in [authentication middleware](#authentication-middleware) we can retrive user in resolvers using ctx argument. so in CreateLink function add these lines:
+With what we did in [authentication middleware](#authentication-middleware) we can retrieve user in resolvers using ctx argument. so in CreateLink function add these lines:
 `resolver.go`:
 ```go
 func (r *mutationResolver) CreateLink(ctx context.Context, input NewLink) (*Link, error) {
