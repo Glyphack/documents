@@ -896,5 +896,44 @@ func (m *WrongUsernameOrPasswordError) Error() string {
 	return "wrong username or password"
 }
 ```
+To define a custom error in go you need a struct with Error method implemented, here is our error for wrong username or password with it's Error() method.
 
-#### Enhance 
+#### Refresh Token
+
+
+#### Completing Our app 
+Our CreateLink mutation left incomplete because we could not authorize users back then, so let's get back to it and complete the implementation.
+With what we did in [authentication middleware](#authentication-middleware) we can retrive user in resolvers using ctx argument. so in CreateLink function add these lines:
+`resolver.go`:
+```go
+func (r *mutationResolver) CreateLink(ctx context.Context, input NewLink) (*Link, error) {
+	// 1
+	user := auth.ForContext(ctx)
+	if user == nil {
+		return &Link{}, fmt.Errorf("access denied")
+	}
+	.
+	.
+	.
+	// 2
+	link.User = user
+	linkId := link.Save()
+	return &Link{ID: strconv.Itoa(linkId), Title: link.Title, Address: link.Address}, nil
+}
+```
+Explanation:
+* 1: we get user object from ctx and if user is not set we return error with message access denied.
+* 2: then we set user of that link equal to the user is requesting to create the link.
+
+The part that is left here is our database operation for creating link, We need to create foreign key from the link we inserting to that user.
+`internal/links/links.go`:
+In our Save method from links changed the query statement to:
+```go
+statement, err := database.Db.Prepare("INSERT INTO Links(Title,Address, UserID) VALUES(?,?, ?)")
+```
+and the line that we execute query to:
+```go
+res, err := statement.Exec(link.Title, link.Address, link.User.ID)
+```
+
+and Our app is finally complete.
