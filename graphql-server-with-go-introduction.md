@@ -1,7 +1,7 @@
 ---
 title: ‌GraphQL server with Go introduction
 published: false
-description: Introduction to Building GraphQL apis with golang and gqlgen.
+description: Introduction to GraphQL apis with golang.
 tags: graphql, go, api, gqlgen
 ---
 ## Table Of Contents
@@ -32,7 +32,8 @@ tags: graphql, go, api, gqlgen
   - [Continue Implementing schema](#continue-implementing-schema)
     - [CreateUser](#createuser)
     - [Login](#login)
-    - [Enhance](#enhance)
+	- [RefreshToken](#refresh-token)
+    - [Completing Our App](#completing-our-app)
 
 ### Motivation <a name="motivation"></a>
 [**Go**](https://golang.org/) is a modern general purpose programming language designed by google; best known for it's simplicity, concurrency and fast performance. It's being used by big players in the industry like Google, Docker, Lyft and Uber. If you are new to golang you can start from [golang tour](https://tour.golang.org/) to learn fundamentals.
@@ -40,26 +41,48 @@ tags: graphql, go, api, gqlgen
 [**gqlgen**](https://gqlgen.com/) is a library for creating GraphQL applications in Go.
 
 
-In this tutorial we create a Hackernews clone with GraphQL API with `golang` and `gqlgen` and learn GraphQL fundamentals along the way.
+In this tutorial we create a Hackernews clone GraphQL API with `golang` and `gqlgen` and learn about GraphQL fundamentals along the way.
 
-#### What is a GraphQL server?
-GraphQL is a query language for API so you can send queries and ask what you need and get exactly that.
+#### What is a GraphQL server? <a name="#what-is-a-graphql-server"></a>
+GraphQL is a query language for API so you can send queries and ask what you need and exactly get that piece of data.
 sample query:
 ```
+query {
+	links{
+    	title
+    	address,
+    	user{
+      		name
+    	}
+  	}
+}
 ```
 sample response:
 ```
+{
+  "data": {
+    "links": [
+      {
+        "title": "our dummy link",
+        "address": "https://address.org",
+        "user": {
+          "name": "admin"
+        }
+      }
+    ]
+  }
+}
 ```
 
-#### Schema-Driven Development
+#### Schema-Driven Development <a name="#schema-driven-development"></a>
 In GraphQL your API starts with a schema that defines all your types, queries and mutations, It helps others to understand your API so all of your team can understand how to work with your API, a contract between server and the client.
-Whenever you need to add a new capability to a GraphQL API you must redefine schema file and then start implementation. GraphQL has it's [Schema Definition Language](http://graphql.org/learn/schema/) for this.
+Whenever you need to add a new capability to a GraphQL API you must redefine schema file and then implement that part in your code. GraphQL has it's [Schema Definition Language](http://graphql.org/learn/schema/) for this.
 gqlgen library has a nice feature and generate code based on your schema definition.
 
 ### Getting started <a name="getting-started"></a>
 In this tutorial we are going to create a Hackernews clone with Go and gqlgen, So our API will be able to handle registration, authentication, submitting links and returning list of links.
 
-#### Project Setup
+#### Project Setup a<name="project-setup"></a>
 Create a directory for project and initialize go module:
 ```bash
 go mod init github.com/[username]/hackernews
@@ -75,7 +98,7 @@ Here is a description from gqlgen about the generated files:
 * models_gen.go — Generated models required to build the graph. Often you will override these with your own models. Still very useful for input types.
 * resolver.go — This is where your application code lives. generated.go will call into this to get the data the user has requested.
 * server/server.go — This is a minimal entry point that sets up an http.Handler to the generated GraphQL server.
-run the code with `go run server.go` and open your browser and you should see the graphql playground, So setup is right!
+start the server with `go run server.go` and open your browser and you should see the graphql playground, So setup is right!
 
 Now let's start with defining schema file with features we need for our API. We have two types Link and User each of them for representing Link and User to client, a `links` Query to return list of Links. a input for creating NewLink and mutation for creating link and returns created link. then run the command below to regenerate models.
 ```js
@@ -100,6 +123,10 @@ input NewLink {
   address: String!
 }
 
+input RefreshTokenInput{
+  token: String!
+}
+
 input NewUser {
   username: String!
   password: String!
@@ -112,9 +139,10 @@ input Login {
 
 type Mutation {
   createLink(input: NewLink!): Link!
-  # we'll talk about these in authentication section
   createUser(input: NewUser!): String!
   login(input: Login!): String!
+  # we'll talk about this in authentication section
+  refreshToken(input: RefreshTokenInput!): String!
 }
 ```
 Now run the command to regenerate files;
@@ -125,13 +153,13 @@ After gqlgen generated code for us with have to implement our schema, we do that
 Now let's see what we got, run app with `go run server/server.go` and go to localhost you should see graphiql page.
 
 
-### Queries
+### Queries a<name="queries"></a>
 In the previous chapter we setup up a server that runs graphql, Now we try to implement a Query that we defined in `schema.grpahql`.
 
-#### What Is A Query
+#### What Is A Query a<name="what-is-a-query"></a>
 a query in graphql is asking for data, you ask for the data type you want and specify what you want from that type and graphql will return it back to you
 
-#### Simple Query
+#### Simple Query a<name="simple-query"></a>
  open `resolver.go` file and take a look at Links function,
 ```go
 func (r *queryResolver) Links(ctx context.Context) ([]*Link, error) {
@@ -175,11 +203,11 @@ And you will get:
 Nice! now you know how we generate response for our graphql server. But this response is just a dummy response we want be able to query all other users links, In the next chapter we setup database for our app to be able to save links and retrieve them from database.
 
 
-### Mutations
-#### What Is A Mutation
+### Mutations a<name="mutations"></a>
+#### What Is A Mutation a<name="what-is-a-mutation"></a>
 Simply mutations are just like queries but they can cause a data write, Technically Queries can be used to write data too however it's not suggested to use it.
 So mutations are like queries, they have names, parameters and they can return data.
-#### A Simple Mutation
+#### A Simple Mutation a<name="a-simple-mutation"></a>
 Let's try to implement the createLink mutation, since we do not have a database set up yet(we'll get it done in the next chapter) we just receive the link data and construct a link object and send it back for response!
 Open `resolver.go` and Look at `CreateLink` function:
 ```go
@@ -227,12 +255,12 @@ and you will get:
 Nice now we know what are mutations and queries we can setup our database and make these implementations more functional.
 
 
-### Database
+### Database a<name="database"></a>
 Before we jump into implementing GraphQL schema we need to setup database to save users and links, This is not supposed to be tutorial about databases in go but here is what we are going to do:
 * setup MySQL and create table
 * define our models and create migrations
 
-##### Setup MySQL
+##### Setup MySQL a<name="setup-mysql"></a>
 If you have docker you can run [Mysql image]((https://hub.docker.com/_/mysql)) from docker and use it.
 `docker run --name mysql -e MYSQL_ROOT_PASSWORD=dbpass -d mysql:latest`
 now run `docker ps` and you should see our mysql image is running:
@@ -249,7 +277,7 @@ mysql -u root -p
 CREATE DATABASE hackernews;
 ```
 
-##### Models and migrations
+##### Models and migrations a<name="models-and-migrations"></a>
 We need to create migrations for our app so every time our app runs it creates tables it needs to work properly, we are going to use [golang-migrate](https://github.com/golang-migrate/migrate) package.
 create a folder structure for our database files:
 ```
@@ -343,10 +371,10 @@ func main() {
 ```
 
 
-### Create and Retrieve Links
+### Create and Retrieve Links a<name="create-and-retrieve-links"></a>
 Now we have our database ready we can start implementing our schema!
 
-#### CreateLinks
+#### CreateLinks a<name="createlinks"></a>
 Lets implement CreateLink mutation; first we need a function to let us write a link to database.
 Create a folders links and users inside internal folder, these packages are layers between database and our app.
 users/users.go:
@@ -440,7 +468,7 @@ mutation create{
 ```
 Grate job!
 
-#### links Query
+#### links Query a<name="links-query"></a>
 Just like how we implemented CreateLink mutation we implement links query, we need a function to retrieve links from database and pass it to graphql server in our resolver.
 Create a function named GetAll
 `internal/links/links.go`:
@@ -512,17 +540,17 @@ result:
 }
 ```
 
-### Authentication
+### Authentication a<name="authentication"></a>
 One of most common layers in web applications is authentication system, our app is no exception. For authentication we are going to use jwt tokens as our way to authentication users, lets see how it works.
 
-##### JWT
+##### JWT a<name="jwt"></a>
 [JWT](https://jwt.io/) or Json Web Token is a string containing a hash that helps us verify who is using application. Every token is constructed of 3 parts like 'xxxxx.yyyyy.zzzzz' and name of these parts are: Header, Payload and Signature. Explanation about these parts are more about JWT than our application you can read more about them [here](https://jwt.io/introduction/).
 whenever a user login to an app server generates a token for user, Usually server saves some information like username about the user in token to be able to recognize the user later using that token.This tokens get signed by a key so only the issuer app can reopen the token.
 We are going to implement this behavior in our app. 
 
-##### Setup
+##### Setup a<name="setup"></a>
 In our app we need to be able to generate a token for users when they sign up or login and a middleware to authenticate users by the given token, then in our views we can know the user interacting with app. We will be using `github.com/dgrijalva/jwt-go` library to generate and prase JWT tokens.
-###### Generating and Parsing JWT Tokens
+###### Generating and Parsing JWT Tokens a<name="generating-and-parsing-jwt-tokens"></a>
 We create a new directory pkg in the root of our application, you have seen that we used internal for what we want to only be internally used withing our app, pkg directory is for files that we don't mind if some outer code imports it into itself and generation and validation jwt tokens are this kind of codes.
 There is a concept named claims it's not only limited to JWT
 `pkg/jwt/token.go`:
@@ -585,7 +613,7 @@ Let's talk about what above code does:
 * GenerateToken function is going to be used whenever we want to generate a token for user, we save username in token claims and set token expire time to 5 minutes later also in claims.
 * ParseToken function is going to be used whenever we receive a token and want to know who sent this token.
 
-###### User Signup and Login Functionality
+###### User SignUp and Login Functionality a<name="user-signup-and-login-functionality"></a>
 Til now we can generate a token for each user but before generating token for every user, we need to assure user exists in our database. Simply we need to query database to match the user with given username and password.
 Another thing is when a user tries to register we insert username and password in our database.
 `internal/users/users.go`:
@@ -658,7 +686,7 @@ The Create function is much like the [CreateLink](#createlinks) function we saw 
 * then we check if any user with given username exists or not, if there is not any we return `false`, and if we found any we check the user hashedPassword with the raw password given.(Notice that we save hashed passwords not raw passwords in database in line 23)
 
 In the next part we set the tools we have together to detect the user that is using the app.
-###### Authentication Middleware
+###### Authentication Middleware a<name="authentication-middleware"></a>
 Every time a request comes to our resolver before sending it to resolver we want to recognize the user sending request, for this purpose we have to write a code before every resolver, but using middleware we can have a auth middleware that executes before request send to resolver and does the authentication process. to read more about middlewares visit.
 
 
@@ -789,9 +817,9 @@ func main() {
 }
 ```
 
-### Continue Implementing schema
+### Continue Implementing schema a<name="continue-implementation"></a>
 Now that we have working authentication system we can get back to implementing our schema.
-#### CreateUser
+#### CreateUser a<name="createuser"></a>
 As you may guess, we need a function to interact with our database:
 `internal/users.go`:
 ```go
@@ -834,7 +862,7 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input NewUser) (strin
 }
 ```
 In our mutation first we create a user using given username and password and then generate a token for the user so we can recognize the user in requests.
-#### Login
+#### Login a<name="login"></a>
 For this mutation, first we have to check if user exists in database and given password is correct, then we generate a token for user and give it bach to user.
 `internal/users.go`:
 ```go
@@ -898,10 +926,27 @@ func (m *WrongUsernameOrPasswordError) Error() string {
 ```
 To define a custom error in go you need a struct with Error method implemented, here is our error for wrong username or password with it's Error() method.
 
-#### Refresh Token
+#### Refresh Token <a name="refresh-token"></a>
+This is the last endpoint we need to complete our authentication system, imagine a user has loggedIn in our app and it's token is going to get expired after minutes we set(when generated the token), now we need a solution to keep our user loggedIn. One solution is to have a endpoint to get tokens that are going to expire and regenerate a new token for that user so that app uses new token.
+So our endpoint should take a token, Parse the username and generate a token for that username.
+`resolver.go`:
+```go
+func (r *mutationResolver) RefreshToken(ctx context.Context, input RefreshTokenInput) (string, error) {
+	username, err := jwt.ParseToken(input.Token)
+	if err != nil {
+		return "", fmt.Errorf("access denied")
+	}
+	token, err := jwt.GenerateToken(username)
+	if err != nil {
+		return "", err
+	}
+	return token, nil
+}
+```
+Implementation is pretty straightforward so we skip the explanation for this.
 
 
-#### Completing Our app 
+#### Completing Our app a<name="completing-our-app"></a>
 Our CreateLink mutation left incomplete because we could not authorize users back then, so let's get back to it and complete the implementation.
 With what we did in [authentication middleware](#authentication-middleware) we can retrieve user in resolvers using ctx argument. so in CreateLink function add these lines:
 `resolver.go`:
