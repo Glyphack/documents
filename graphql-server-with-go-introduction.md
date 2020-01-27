@@ -1,28 +1,28 @@
 ---
-title: ‌GraphQL server with Go introduction
+title: ‌Introduction To GraphQL Server With Golang
 published: false
-description: Introduction to GraphQL apis with golang.
+description: Introduction to GraphQL Server with Golang and Gqlgen.
 tags: graphql, go, api, gqlgen
 ---
 ## Table Of Contents
 - [Table Of Contents](#table-of-contents)
   - [Motivation ](#motivation)
-    - [What is a GraphQL server?](#what-is-a-graphql-server)
-    - [Schema-Driven Development](#schema-driven-development)
+      - [What is a GraphQL server?](#what-is-a-graphql-server)
+      - [Schema-Driven Development](#schema-driven-development)
   - [Getting started ](#getting-started)
-    - [Project Setup](#project-setup)
+      - [Project Setup](#project-setup)
   - [Queries](#queries)
-    - [What Is A Query](#what-is-a-query)
-    - [Simple Query](#simple-query)
+      - [What Is A Query](#what-is-a-query)
+      - [Simple Query](#simple-query)
   - [Mutations](#mutations)
-    - [What Is A Mutation](#what-is-a-mutation)
-    - [A Simple Mutation](#a-simple-mutation)
+      - [What Is A Mutation](#what-is-a-mutation)
+      - [A Simple Mutation](#a-simple-mutation)
   - [Database](#database)
       - [Setup MySQL](#setup-mysql)
       - [Models and migrations](#models-and-migrations)
   - [Create and Retrieve Links](#create-and-retrieve-links)
-    - [CreateLinks](#createlinks)
-    - [links Query](#links-query)
+      - [CreateLinks](#createlinks)
+      - [links Query](#links-query)
   - [Authentication](#authentication)
       - [JWT](#jwt)
       - [Setup](#setup)
@@ -41,11 +41,11 @@ tags: graphql, go, api, gqlgen
 [**gqlgen**](https://gqlgen.com/) is a library for creating GraphQL applications in Go.
 
 
-In this tutorial we create a Hackernews clone GraphQL API with `golang` and `gqlgen` and learn about GraphQL fundamentals along the way.
+In this tutorial we create a Hackernews clone GraphQL API with *golang* and *gqlgen* and learn about GraphQL fundamentals along the way.
 
-#### What is a GraphQL server? <a name="#what-is-a-graphql-server"></a>
-GraphQL is a query language for API so you can send queries and ask what you need and exactly get that piece of data.
-sample query:
+#### What is a GraphQL server? <a name="what-is-a-graphql-server"></a>
+GraphQL is a query language for API so you can send queries and ask for what you need and exactly get that piece of data.
+In this sample query we are looking for adderss, title of the links and name of the user who add it:
 ```
 query {
 	links{
@@ -57,7 +57,7 @@ query {
   	}
 }
 ```
-sample response:
+response:
 ```
 {
   "data": {
@@ -74,33 +74,34 @@ sample response:
 }
 ```
 
-#### Schema-Driven Development <a name="#schema-driven-development"></a>
+#### Schema-Driven Development <a name="schema-driven-development"></a>
 In GraphQL your API starts with a schema that defines all your types, queries and mutations, It helps others to understand your API so all of your team can understand how to work with your API, a contract between server and the client.
-Whenever you need to add a new capability to a GraphQL API you must redefine schema file and then implement that part in your code. GraphQL has it's [Schema Definition Language](http://graphql.org/learn/schema/) for this.
-gqlgen library has a nice feature and generate code based on your schema definition.
+Whenever you need to add a new capability to a GraphQL API you must redefine schema file and then implement that part in your code. GraphQL has it's [Schema Definition Language](http://graphql.org/learn/schema/) for this purpose.
+gqlgen library has a nice feature that generates code based on your schema definition.
 
 ### Getting started <a name="getting-started"></a>
-In this tutorial we are going to create a Hackernews clone with Go and gqlgen, So our API will be able to handle registration, authentication, submitting links and returning list of links.
+In this tutorial we are going to create a Hackernews clone with Go and gqlgen, So our API will be able to handle registration, authentication, submitting links and getting list of links.
 
 #### Project Setup a<name="project-setup"></a>
-Create a directory for project and initialize go module:
+Create a directory for project and initialize go modules file:
 ```bash
 go mod init github.com/[username]/hackernews
 ````
 
-after that use gqlgen init command to setup a gqlgen project.
-```go
+after that use ‍‍`gqlgen command` to setup a gqlgen project.
+```
 go run github.com/99designs/gqlgen init
 ```
 Here is a description from gqlgen about the generated files:
-* gqlgen.yml — The gqlgen config file, knobs for controlling the generated code.
-* generated.go — The GraphQL execution runtime, the bulk of the generated code.
-* models_gen.go — Generated models required to build the graph. Often you will override these with your own models. Still very useful for input types.
-* resolver.go — This is where your application code lives. generated.go will call into this to get the data the user has requested.
-* server/server.go — This is a minimal entry point that sets up an http.Handler to the generated GraphQL server.
+* `gqlgen.yml` — The gqlgen config file, knobs for controlling the generated code.
+* `generated.go` — The GraphQL execution runtime, the bulk of the generated code.
+* `models_gen.go` — Generated models required to build the graph. Often you will override these with your own models. Still very useful for input types.
+* `resolver.go` — This is where your application code lives. generated.go will call into this to get the data the user has requested.
+* `server/server.go` — This is a minimal entry point that sets up an http.Handler to the generated GraphQL server.
 start the server with `go run server.go` and open your browser and you should see the graphql playground, So setup is right!
 
-Now let's start with defining schema file with features we need for our API. We have two types Link and User each of them for representing Link and User to client, a `links` Query to return list of Links. a input for creating NewLink and mutation for creating link and returns created link. then run the command below to regenerate models.
+Now let's start with defining schema we need for our API. 
+We have two types Link and User each of them for representing Link and User to client, a `links` Query to return list of Links. an input for creating new links and mutation for creating link. we also need mutations to for auth system which includes Login, createUser, refreshToken(I'll explain them later) then run the command below to regenerate graphql models.
 ```js
 type Link {
   id: ID!
@@ -145,34 +146,38 @@ type Mutation {
   refreshToken(input: RefreshTokenInput!): String!
 }
 ```
-Now run the command to regenerate files;
-```go
+Now remove resolver.go and  re-run the command to regenerate files;
+```
+rm resolver.go
 go run github.com/99designs/gqlgen
 ```
 After gqlgen generated code for us with have to implement our schema, we do that in ‍‍‍‍`resolver.go`, as you see there is functions for Queries and Mutations we defined in our schema.
-Now let's see what we got, run app with `go run server/server.go` and go to localhost you should see graphiql page.
 
 
 ### Queries a<name="queries"></a>
-In the previous chapter we setup up a server that runs graphql, Now we try to implement a Query that we defined in `schema.grpahql`.
+In the previous section we setup up the server, Now we try to implement a Query that we defined in `schema.grpahql`.
 
 #### What Is A Query a<name="what-is-a-query"></a>
-a query in graphql is asking for data, you ask for the data type you want and specify what you want from that type and graphql will return it back to you
+a query in graphql is asking for data, you use a query and specify what you want and graphql will return it back to you.
 
 #### Simple Query a<name="simple-query"></a>
  open `resolver.go` file and take a look at Links function,
-```go
+```
 func (r *queryResolver) Links(ctx context.Context) ([]*Link, error) {
 ```
-this function returns slice of Links, Let's make a dummy response for this function for now
-```go
+Notice that this function takes a Context and returns slice of Links and an error(is there is any).
+ctx argument contains the data from the person who sends request like which user is working with app(we'll see how later), etc.
+
+Let's make a dummy response for this function, for now.
+`resolver.go`:
+```
 func (r *queryResolver) Links(ctx context.Context) ([]*Link, error) {
 	var links []*Link
 	links = append(links, &Link{Title: "our dummy link", Address: "https://address.org", User: &User{Name: "admin"}})
 	return links, nil
 }
 ```
-now run graphql server and send this query:
+now run the server with `go run server/server.go` and send this query in graphiql:
 ```
 query {
 	links{
@@ -200,7 +205,7 @@ And you will get:
   }
 }
 ```
-Nice! now you know how we generate response for our graphql server. But this response is just a dummy response we want be able to query all other users links, In the next chapter we setup database for our app to be able to save links and retrieve them from database.
+Now you know how we generate response for our graphql server. But this response is just a dummy response we want be able to query all other users links, In the next section we setup database for our app to be able to save links and retrieve them from database.
 
 
 ### Mutations a<name="mutations"></a>
@@ -210,11 +215,11 @@ So mutations are like queries, they have names, parameters and they can return d
 #### A Simple Mutation a<name="a-simple-mutation"></a>
 Let's try to implement the createLink mutation, since we do not have a database set up yet(we'll get it done in the next chapter) we just receive the link data and construct a link object and send it back for response!
 Open `resolver.go` and Look at `CreateLink` function:
-```go
+```
 func (r *mutationResolver) CreateLink(ctx context.Context, input NewLink) (*Link, error) {
 ```
 This function receives a `NewLink` with type of `input` we defined NewLink structure in our `schema.graphql` try to look at the structure and try Construct a `Link` object that be defined in our `schema.ghraphql`:
-```go
+```
 func (r *mutationResolver) CreateLink(ctx context.Context, input NewLink) (*Link, error) {
 	var link Link
 	var user User
@@ -324,7 +329,7 @@ We need one table for saving links and one table for saving users, Then we apply
 
 Last thing is that we need a connection to our database, for this we create a mysql.go under mysql folder(We name this file after mysql since we are now using mysql and if we want to have multiple databases we can add other folders) with a function to initialize connection to database for later use.
 internals/db/mysql/mysql.go:
-```go
+```
 package database
 
 import 	(
@@ -351,7 +356,7 @@ func InitDB() {
 ```
 
 Then call `InitDB` In main func to create database connection at the start of the app:
-```go
+```
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -378,7 +383,7 @@ Now we have our database ready we can start implementing our schema!
 Lets implement CreateLink mutation; first we need a function to let us write a link to database.
 Create a folders links and users inside internal folder, these packages are layers between database and our app.
 users/users.go:
-```go
+```
 package users
 
 type User struct {
@@ -388,7 +393,7 @@ type User struct {
 }
 ```
 links/links.go:
-```go
+```
 package links
 
 import (
@@ -434,7 +439,7 @@ In users.go we just defined a `struct` that represent users we get from database
 
 Now we use this function in our CreateLink resolver:
 resolver.go:
-```go
+```
 func (r *mutationResolver) CreateLink(ctx context.Context, input NewLink) (*Link, error) {
 	var link links.Link
 	link.Title = input.Title
@@ -472,7 +477,7 @@ Grate job!
 Just like how we implemented CreateLink mutation we implement links query, we need a function to retrieve links from database and pass it to graphql server in our resolver.
 Create a function named GetAll
 `internal/links/links.go`:
-```go
+```
 func GetAll() []Link {
 	stmt, err := database.Db.Prepare("select id, title, address from Links")
 	if err != nil {
@@ -502,7 +507,7 @@ func GetAll() []Link {
 
 Return links from GetAll in Links query.
 `resolver.go`:
-```go
+```
 func (r *queryResolver) Links(ctx context.Context) ([]*Link, error) {
 	var resultLinks []*Link
 	var dbLinks []links.Link
@@ -554,7 +559,7 @@ In our app we need to be able to generate a token for users when they sign up or
 We create a new directory pkg in the root of our application, you have seen that we used internal for what we want to only be internally used withing our app, pkg directory is for files that we don't mind if some outer code imports it into itself and generation and validation jwt tokens are this kind of codes.
 There is a concept named claims it's not only limited to JWT
 `pkg/jwt/token.go`:
-```go
+```
 package jwt
 
 import (
@@ -617,7 +622,7 @@ Let's talk about what above code does:
 Til now we can generate a token for each user but before generating token for every user, we need to assure user exists in our database. Simply we need to query database to match the user with given username and password.
 Another thing is when a user tries to register we insert username and password in our database.
 `internal/users/users.go`:
-```go
+```
 package users
 
 import (
@@ -691,7 +696,7 @@ Every time a request comes to our resolver before sending it to resolver we want
 
 
 `internal/users/users.go`:
-```go
+```
 //GetUserByUsername check if a user exists in database by given username
 func (user *User) GetUserByUsername() (int, error) {
 	statement, err := database.Db.Prepare("select ID from Users WHERE Username = ?")
@@ -714,7 +719,7 @@ func (user *User) GetUserByUsername() (int, error) {
 ```
 
 `internal/auth/middleware.go`:
-```go
+```
 package auth
 
 import (
@@ -779,7 +784,7 @@ func ForContext(ctx context.Context) *users.User {
 
 Now we use the middleware we declared in our server:
 `server/server.go`:
-```go
+```
 package main
 
 import (
@@ -817,12 +822,12 @@ func main() {
 }
 ```
 
-### Continue Implementing schema a<name="continue-implementation"></a>
+### Continue Implementing schema a<name="continue-implementing-schema"></a>
 Now that we have working authentication system we can get back to implementing our schema.
 #### CreateUser a<name="createuser"></a>
 As you may guess, we need a function to interact with our database:
 `internal/users.go`:
-```go
+```
 func (user *User) Create() error {
 	statement, err := database.Db.Prepare("INSERT INTO Users(Name,Password) VALUES(?,?)")
 	if err != nil {
@@ -848,7 +853,7 @@ Explanation:
 
 We continue our implementation by using this function in our mutation to create users.
 `resolver.go`:
-```go
+```
 func (r *mutationResolver) CreateUser(ctx context.Context, input NewUser) (string, error) {
 	var user users.User
 	user.Username = input.Username
@@ -865,7 +870,7 @@ In our mutation first we create a user using given username and password and the
 #### Login a<name="login"></a>
 For this mutation, first we have to check if user exists in database and given password is correct, then we generate a token for user and give it bach to user.
 `internal/users.go`:
-```go
+```
 func (user *User) Authenticate() bool {
 	statement, err := database.Db.Prepare("select Password from Users WHERE Username = ?")
 	if err != nil {
@@ -896,7 +901,7 @@ Explanation:
 * we select the user with the given username and then check if hash of the given password is equal to hashed password that we saved in database.
 
 `resolver.go`
-```go
+```
 func (r *mutationResolver) Login(ctx context.Context, input Login) (string, error) {
 	var user users.User
 	user.Username = input.Username
@@ -915,7 +920,7 @@ func (r *mutationResolver) Login(ctx context.Context, input Login) (string, erro
 ```
 We used the Authenticate function declared above and after that if the username and password are correct we return a new token for user and if not we return error, `&users.WrongUsernameOrPasswordError`, here is implementation for this error:
 `internal/users/errors.go`:
-```go
+```
 package users
 
 type WrongUsernameOrPasswordError struct{}
@@ -930,7 +935,7 @@ To define a custom error in go you need a struct with Error method implemented, 
 This is the last endpoint we need to complete our authentication system, imagine a user has loggedIn in our app and it's token is going to get expired after minutes we set(when generated the token), now we need a solution to keep our user loggedIn. One solution is to have a endpoint to get tokens that are going to expire and regenerate a new token for that user so that app uses new token.
 So our endpoint should take a token, Parse the username and generate a token for that username.
 `resolver.go`:
-```go
+```
 func (r *mutationResolver) RefreshToken(ctx context.Context, input RefreshTokenInput) (string, error) {
 	username, err := jwt.ParseToken(input.Token)
 	if err != nil {
@@ -950,7 +955,7 @@ Implementation is pretty straightforward so we skip the explanation for this.
 Our CreateLink mutation left incomplete because we could not authorize users back then, so let's get back to it and complete the implementation.
 With what we did in [authentication middleware](#authentication-middleware) we can retrieve user in resolvers using ctx argument. so in CreateLink function add these lines:
 `resolver.go`:
-```go
+```
 func (r *mutationResolver) CreateLink(ctx context.Context, input NewLink) (*Link, error) {
 	// 1
 	user := auth.ForContext(ctx)
@@ -973,11 +978,11 @@ Explanation:
 The part that is left here is our database operation for creating link, We need to create foreign key from the link we inserting to that user.
 `internal/links/links.go`:
 In our Save method from links changed the query statement to:
-```go
+```
 statement, err := database.Db.Prepare("INSERT INTO Links(Title,Address, UserID) VALUES(?,?, ?)")
 ```
 and the line that we execute query to:
-```go
+```
 res, err := statement.Exec(link.Title, link.Address, link.User.ID)
 ```
 
