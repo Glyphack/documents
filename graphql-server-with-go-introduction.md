@@ -218,11 +218,11 @@ So mutations are like queries, they have names, parameters and they can return d
 #### A Simple Mutation <a name="a-simple-mutation"></a>
 Let's try to implement the createLink mutation, since we do not have a database set up yet(we'll get it done in the next section) we just receive the link data and construct a link object and send it back for response!
 Open `resolver.go` and Look at `CreateLink` function:
-```
+```go
 func (r *mutationResolver) CreateLink(ctx context.Context, input NewLink) (*Link, error) {
 ```
 This function receives a `NewLink` with type of `input` we defined NewLink structure in our `schema.graphql` try to look at the structure and try Construct a `Link` object that be defined in our `schema.ghraphql`:
-```
+```go
 func (r *mutationResolver) CreateLink(ctx context.Context, input NewLink) (*Link, error) {
 	var link Link
 	var user User
@@ -333,7 +333,7 @@ We need one table for saving links and one table for saving users, Then we apply
 
 Last thing is that we need a connection to our database, for this we create a mysql.go under mysql folder(We name this file after mysql since we are now using mysql and if we want to have multiple databases we can add other folders) with a function to initialize connection to database for later use.
 internal/pkg/db/mysql/mysql.go:
-```
+```go
 package database
 
 import (
@@ -379,7 +379,7 @@ func Migrate() {
 In `Migrate function we apply migrations just like we did with command line but with this function your app will always apply the latest migrations before start.
 
 Then call `InitDB` and `Migrate`(Optional) In main func to create database connection at the start of the app:
-```
+```go
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -856,7 +856,7 @@ So we successfully created our first user!
 For this mutation, first we have to check if user exists in database and given password is correct, then we generate a token for user and give it bach to user.
 
 `internal/users.go`:
-```
+```go
 func (user *User) Authenticate() bool {
 	statement, err := database.Db.Prepare("select Password from Users WHERE Username = ?")
 	if err != nil {
@@ -887,7 +887,7 @@ Explanation:
 * we select the user with the given username and then check if hash of the given password is equal to hashed password that we saved in database.
 
 `resolver.go`
-```
+```go
 func (r *mutationResolver) Login(ctx context.Context, input Login) (string, error) {
 	var user users.User
 	user.Username = input.Username
@@ -906,7 +906,7 @@ func (r *mutationResolver) Login(ctx context.Context, input Login) (string, erro
 ```
 We used the Authenticate function declared above and after that if the username and password are correct we return a new token for user and if not we return error, `&users.WrongUsernameOrPasswordError`, here is implementation for this error:
 `internal/users/errors.go`:
-```
+```go
 package users
 
 type WrongUsernameOrPasswordError struct{}
@@ -922,7 +922,7 @@ Again you can try login with username and password from the user we created and 
 This is the last endpoint we need to complete our authentication system, imagine a user has loggedIn in our app and it's token is going to get expired after minutes we set(when generated the token), now we need a solution to keep our user loggedIn. One solution is to have a endpoint to get tokens that are going to expire and regenerate a new token for that user so that app uses new token.
 So our endpoint should take a token, Parse the username and generate a token for that username.
 `resolver.go`:
-```
+```go
 func (r *mutationResolver) RefreshToken(ctx context.Context, input RefreshTokenInput) (string, error) {
 	username, err := jwt.ParseToken(input.Token)
 	if err != nil {
@@ -942,7 +942,7 @@ Implementation is pretty straightforward so we skip the explanation for this.
 Our CreateLink mutation left incomplete because we could not authorize users back then, so let's get back to it and complete the implementation.
 With what we did in [authentication middleware](#authentication-middleware) we can retrieve user in resolvers using ctx argument. so in CreateLink function add these lines:
 `resolver.go`:
-```
+```go
 func (r *mutationResolver) CreateLink(ctx context.Context, input NewLink) (*Link, error) {
 	// 1
 	user := auth.ForContext(ctx)
