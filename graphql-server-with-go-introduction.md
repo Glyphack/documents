@@ -379,7 +379,7 @@ func Migrate() {
 }
 ```
 `InitDB` Function creates a connection to our database and `Migrate` function runs migrations file for us.
-In `Migrate function we apply migrations just like we did with command line but with this function your app will always apply the latest migrations before start.
+In `Migrate` function we apply migrations just like we did with command line but with this function your app will always apply the latest migrations before start.
 
 Then call `InitDB` and `Migrate`(Optional) In main func to create database connection at the start of the app:
 ```go
