@@ -165,7 +165,7 @@ a query in graphql is asking for data, you use a query and specify what you want
 
 #### Simple Query <a name="simple-query"></a>
  open `resolver.go` file and take a look at Links function,
-```
+```go
 func (r *queryResolver) Links(ctx context.Context) ([]*Link, error) {
 ```
 Notice that this function takes a Context and returns slice of Links and an error(is there is any).
