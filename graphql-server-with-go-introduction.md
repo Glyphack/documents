@@ -172,6 +172,7 @@ Notice that this function takes a Context and returns slice of Links and an erro
 ctx argument contains the data from the person who sends request like which user is working with app(we'll see how later), etc.
 
 Let's make a dummy response for this function, for now.
+
 `resolver.go`:
 ```go
 func (r *queryResolver) Links(ctx context.Context) ([]*Link, error) {
@@ -332,7 +333,8 @@ We need one table for saving links and one table for saving users, Then we apply
 ```
 
 Last thing is that we need a connection to our database, for this we create a mysql.go under mysql folder(We name this file after mysql since we are now using mysql and if we want to have multiple databases we can add other folders) with a function to initialize connection to database for later use.
-internal/pkg/db/mysql/mysql.go:
+
+`internal/pkg/db/mysql/mysql.go`:
 ```go
 package database
 
@@ -405,6 +407,7 @@ Now we have our database ready we can start implementing our schema!
 #### CreateLinks <a name="createlinks"></a>
 Lets implement CreateLink mutation; first we need a function to let us write a link to database.
 Create a folders links and users inside internal folder, these packages are layers between database and our app.
+
 `internal/users/users.go`:
 ```go
 package users
@@ -463,6 +466,7 @@ In users.go we just defined a `struct` that represent users we get from database
 * 5: retrieving Id of inserted Link.
 
 Now we use this function in our CreateLink resolver:
+
 `resolver.go`:
 ```go
 func (r *mutationResolver) CreateLink(ctx context.Context, input NewLink) (*Link, error) {
@@ -501,6 +505,7 @@ Grate job!
 #### links Query <a name="links-query"></a>
 Just like how we implemented CreateLink mutation we implement links query, we need a function to retrieve links from database and pass it to graphql server in our resolver.
 Create a function named GetAll
+
 `internal/links/links.go`:
 ```go
 func GetAll() []Link {
@@ -531,6 +536,7 @@ func GetAll() []Link {
 ```
 
 Return links from GetAll in Links query.
+
 `resolver.go`:
 ```go
 func (r *queryResolver) Links(ctx context.Context) ([]*Link, error) {
@@ -582,6 +588,7 @@ In our app we need to be able to generate a token for users when they sign up or
 ###### Generating and Parsing JWT Tokens <a name="generating-and-parsing-jwt-tokens"></a>
 We create a new directory pkg in the root of our application, you have seen that we used internal for what we want to only be internally used withing our app, pkg directory is for files that we don't mind if some outer code imports it into itself and generation and validation jwt tokens are this kinds of code.
 There is a concept named claims it's not only limited to JWT We'll see more about it in rest of the section.
+
 `pkg/jwt/jwt.go`:
 ```go
 package jwt
@@ -633,6 +640,7 @@ Let's talk about what above code does:
 ###### User SignUp and Login Functionality <a name="user-signup-and-login-functionality"></a>
 Til now we can generate a token for each user but before generating token for every user, we need to assure user exists in our database. Simply we need to query database to match the user with given username and password.
 Another thing is when a user tries to register we insert username and password in our database.
+
 `internal/users/users.go`:
 ```go
 package users
@@ -712,6 +720,7 @@ func GetUserIdByUsername(username string) (int, error) {
 We use this function to get user object with username in authentication middeware.
 
 And now let's create our auth middleware, for more information visit [gql authentication docs](https://github.com/99designs/gqlgen/blob/master/docs/content/recipes/authentication.md).
+
 `internal/auth/middleware.go`:
 ```go
 package auth
@@ -777,6 +786,7 @@ func ForContext(ctx context.Context) *users.User {
 ```
 
 Now we use the middleware we declared in our server:
+
 `server/server.go`:
 ```go
 package main
@@ -820,6 +830,7 @@ func main() {
 Now that we have working authentication system we can get back to implementing our schema.
 #### CreateUser <a name="createuser"></a>
 We continue our implementation of CreateUser mutation with functions we have written in auth section.
+
 `resolver.go`:
 ```go
 func (r *mutationResolver) CreateUser(ctx context.Context, input NewUser) (string, error) {
@@ -905,6 +916,7 @@ func (r *mutationResolver) Login(ctx context.Context, input Login) (string, erro
 }
 ```
 We used the Authenticate function declared above and after that if the username and password are correct we return a new token for user and if not we return error, `&users.WrongUsernameOrPasswordError`, here is implementation for this error:
+
 `internal/users/errors.go`:
 ```go
 package users
@@ -921,6 +933,7 @@ Again you can try login with username and password from the user we created and 
 #### Refresh Token <a name="refresh-token"></a>
 This is the last endpoint we need to complete our authentication system, imagine a user has loggedIn in our app and it's token is going to get expired after minutes we set(when generated the token), now we need a solution to keep our user loggedIn. One solution is to have a endpoint to get tokens that are going to expire and regenerate a new token for that user so that app uses new token.
 So our endpoint should take a token, Parse the username and generate a token for that username.
+
 `resolver.go`:
 ```go
 func (r *mutationResolver) RefreshToken(ctx context.Context, input RefreshTokenInput) (string, error) {
@@ -941,6 +954,7 @@ Implementation is pretty straightforward so we skip the explanation for this.
 #### Completing Our app <a name="completing-our-app"></a>
 Our CreateLink mutation left incomplete because we could not authorize users back then, so let's get back to it and complete the implementation.
 With what we did in [authentication middleware](#authentication-middleware) we can retrieve user in resolvers using ctx argument. so in CreateLink function add these lines:
+
 `resolver.go`:
 ```go
 func (r *mutationResolver) CreateLink(ctx context.Context, input NewLink) (*Link, error) {
@@ -967,6 +981,7 @@ Explanation:
 * 2: then we set user of that link equal to the user is requesting to create the link.
 
 And edit the links query to get user from db too.
+
 `resolver.go`:
 ```go
 func (r *queryResolver) Links(ctx context.Context) ([]*Link, error) {
@@ -986,6 +1001,7 @@ func (r *queryResolver) Links(ctx context.Context) ([]*Link, error) {
 
 
 The part that is left here is our database operation for creating link, We need to create foreign key from the link we inserting to that user.
+
 `internal/links/links.go`:
 In our Save method from links changed the query statement to:
 ```go
@@ -997,6 +1013,7 @@ res, err := statement.Exec(link.Title, link.Address, link.User.ID)
 ```
 Then when we query for users we also fill the `User` field for Link, so we need to join Links and Users table in our `GetAll` functions to fill the User field.
 If you are not familiar with join checkout (this link)[https://www.w3schools.com/sql/sql_join_inner.asp].
+
 `internal/links/links.go`:
 ```go
 func GetAll() []Link {
