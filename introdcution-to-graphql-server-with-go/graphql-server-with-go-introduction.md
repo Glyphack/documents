@@ -35,6 +35,8 @@ tags: graphql, go, api, gqlgen
     - [Login](#login)
 	- [RefreshToken](#refresh-token)
     - [Completing Our App](#completing-our-app)
+  - [Summary](#summary)
+    - [Further Steps](#further-steps)
 
 ### Motivation <a name="motivation"></a>
 [**Go**](https://golang.org/) is a modern general purpose programming language designed by google; best known for it's simplicity, concurrency and fast performance. It's being used by big players in the industry like Google, Docker, Lyft and Uber. If you are new to golang you can start from [golang tour](https://tour.golang.org/) to learn fundamentals.
@@ -1013,7 +1015,7 @@ and the line that we execute query to:
 res, err := statement.Exec(link.Title, link.Address, link.User.ID)
 ```
 Then when we query for users we also fill the `User` field for Link, so we need to join Links and Users table in our `GetAll` functions to fill the User field.
-If you are not familiar with join checkout (this link)[https://www.w3schools.com/sql/sql_join_inner.asp].
+If you are not familiar with join checkout [this link](https://www.w3schools.com/sql/sql_join_inner.asp).
 
 `internal/links/links.go`:
 ```go
@@ -1052,10 +1054,10 @@ func GetAll() []Link {
 
 and Our app is finally complete.
 
-## Summary
+## Summary <a name="summary"></a>
 Congratulations on make it to here! You've learned about gqlgen library and some Graphql fundamentals. By implementing a HackerNews clone you've learned about queries, mutations, authentication and GraphQL query language. 
-### Further Steps
+### Further Steps <a name="further-steps"></a>
 If you want to create more complex GrahpQL APIs there are few things you can check out:
-* Implement voting feature for hackernews clone app.
-* Read about (Relays)[https://facebook.github.io/relay/docs/en/graphql-server-specification.html] and Pagination and implement them in app.
-* don't forget to visit (Learn GraphQL page)[https://graphql.org/learn/].
+* Implement voting feature and pagination for the app.
+* Read about [Relays](https://facebook.github.io/relay/docs/en/graphql-server-specification.html).
+* don't forget to visit (Learn GraphQL page)[https://graphql.org/learn/] to learn more about GraphQL world.
